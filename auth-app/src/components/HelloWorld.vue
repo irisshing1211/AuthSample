@@ -31,10 +31,24 @@
 </template>
 
 <script>
+import axios from '../axios';
 export default {
   name: 'HelloWorld',
   props: {
     msg: String
+  },
+  mounted() {
+    this.fetchData()
+  },
+  methods: {
+    async fetchData() {
+      try {
+        const response = await axios.get('/protected-data');
+        console.log(response.data);
+      } catch (error) {
+        console.error('Failed to fetch data', error);
+      }
+    }
   }
 }
 </script>
