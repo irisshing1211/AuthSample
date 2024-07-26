@@ -6,11 +6,16 @@
       <input v-model="password" type="password" placeholder="Password" />
       <button type="submit">Login</button>
     </form>
+    <div class="register-link">
+      <p>Don't have an account?</p>
+      <router-link to="/register">Register here</router-link>
+    </div>
   </div>
 </template>
 
 <script>
 export default {
+  name:"LoginForm",
   data() {
     return {
       username: '',
@@ -40,3 +45,12 @@ export default {
   }
 };
 </script>
+<style scoped>
+.register-link {
+  margin-top: 1em;
+}
+.register-link a {
+  color: blue;
+  text-decoration: underline;
+}
+</style>
