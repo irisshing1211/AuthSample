@@ -1,6 +1,12 @@
+using System.Reflection;
+using System.Text;
+using AuthSample;
 using AuthSample.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,11 +14,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Listen(System.Net.IPAddress.Loopback, 5000); // HTTP
-    options.Listen(System.Net.IPAddress.Loopback, 5001, listenOptions =>
-    {
-        listenOptions.UseHttps(); // 使用開發憑證的 HTTPS
-    });
+
+    options.Listen(System.Net.IPAddress.Loopback,
+                   5001,
+                   listenOptions =>
+                   {
+                       listenOptions.UseHttps(); // 使用開發憑證的 HTTPS
+                   });
 });
+
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -24,27 +34,65 @@ app.Run();
 
 void ConfigureServices(IServiceCollection services)
 {
-    
     var configuration = builder.Configuration;
-    
-    services.AddDbContext<ApplicationDbContext>(options =>
-                                                    options.UseSqlServer(
-                                                        configuration.GetConnectionString("DefaultConnection")));
+
+    #region db
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                                                    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Add Identity services
+    builder.Services.AddIdentity<ApplicationUser, Role>()
+           .AddEntityFrameworkStores<ApplicationDbContext>()
+           .AddDefaultTokenProviders();
+
+    #endregion
+
+    #region cors
+
     services.AddCors(options =>
     {
         options.AddPolicy("AllowAll",
-                          builder =>
-                          {
-                              builder.AllowAnyOrigin()
-                                     .AllowAnyMethod()
-                                     .AllowAnyHeader();
-                          });
+                          builder => { builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
     });
-    services.AddIdentity<ApplicationUser, IdentityRole>()
-            .AddEntityFrameworkStores<ApplicationDbContext>()
-            .AddDefaultTokenProviders();
+
+    #endregion
+
+    #region jwt auth
+
+    var key = Encoding.ASCII.GetBytes(configuration["Jwt:Key"]);
+
+    services.AddAuthentication(x =>
+            {
+                x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(x =>
+            {
+                x.RequireHttpsMetadata = false;
+                x.SaveToken = true;
+
+                x.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false
+                };
+            });
+
+    // services.AddAuthorization(options =>
+    // {
+    //     options.AddPolicy("PermissionPolicy", policy =>
+    //                           policy.Requirements.Add(new PermissionRequirement("SomePermission")));
+    // });
+
+    //services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
+
+    #endregion
 
     services.AddControllers();
+
     //services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/dist"; });
 }
 
@@ -65,6 +113,7 @@ void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     app.UseHttpsRedirection();
     app.UseStaticFiles();
     app.UseCors("AllowAll");
+    app.UseMiddleware<PermissionMiddleware>();
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();
@@ -72,6 +121,53 @@ void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 
     // 設定 SPA 路由
     //app.MapFallbackToFile("index.html"); // SPA 路由，處理所有未匹配的路由
+}
 
+async Task GetPermission()
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var assembly = Assembly.GetExecutingAssembly();
 
+        var controllers = assembly.GetTypes()
+                                  .Where(t => typeof(ControllerBase).IsAssignableFrom(t))
+                                  .SelectMany(t => t.GetMethods(
+                                                  BindingFlags.Instance |
+                                                  BindingFlags.Public |
+                                                  BindingFlags.DeclaredOnly))
+                                  .Where(m => m.GetCustomAttribute<ApiPermissionAttribute>() != null);
+
+        foreach (var method in controllers)
+        {
+            var attr = method.GetCustomAttribute<ApiPermissionAttribute>();
+            var code = $"{attr.Module}_{attr.Func}_{attr.Action}";
+
+            var permission = new Permission
+            {
+                Code = code, Module = attr.Module, Func = attr.Func, Action = attr.Action
+            };
+
+            if (!dbContext.Permissions.Any(p => p.Code == code)) { dbContext.Permissions.Add(permission); }
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        // Map Module="Setting" permissions to Admin role
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var role = await roleManager.FindByNameAsync("Admin");
+
+        if (role != null)
+        {
+            var permissions = dbContext.Permissions.Where(p => p.Module == "Setting").ToList();
+
+            // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
+            foreach (var permission in permissions)
+            {
+                // Add logic to map permission to role here
+                // Example: AddPermissionToRole(role.Id, permission.Id);
+            }
+        }
+
+    }
 }
