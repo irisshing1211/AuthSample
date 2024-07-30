@@ -30,6 +30,7 @@ builder.Services.AddSwaggerGen();
 ConfigureServices(builder.Services);
 var app = builder.Build();
 Configure(app, app.Environment);
+await GetPermission();
 app.Run();
 
 void ConfigureServices(IServiceCollection services)
@@ -39,7 +40,9 @@ void ConfigureServices(IServiceCollection services)
     #region db
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                                                    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+                                                            options.UseSqlServer(
+                                                                builder.Configuration.GetConnectionString(
+                                                                    "DefaultConnection")));
 
 // Add Identity services
     builder.Services.AddIdentity<ApplicationUser, Role>()
@@ -127,7 +130,7 @@ async Task GetPermission()
 {
     using (var scope = app.Services.CreateScope())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var ctx = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var assembly = Assembly.GetExecutingAssembly();
 
         var controllers = assembly.GetTypes()
@@ -148,26 +151,43 @@ async Task GetPermission()
                 Code = code, Module = attr.Module, Func = attr.Func, Action = attr.Action
             };
 
-            if (!dbContext.Permissions.Any(p => p.Code == code)) { dbContext.Permissions.Add(permission); }
+            if (!ctx.Permissions.Any(p => p.Code == code)) { ctx.Permissions.Add(permission); }
         }
 
-        await dbContext.SaveChangesAsync();
+        await ctx.SaveChangesAsync();
 
         // Map Module="Setting" permissions to Admin role
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        var role = await roleManager.FindByNameAsync("Admin");
+        //var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var role = await ctx.Roles.FirstOrDefaultAsync(a => a.Name == "Admin");
 
         if (role != null)
         {
-            var permissions = dbContext.Permissions.Where(p => p.Module == "Setting").ToList();
+            var permissions = ctx.Permissions.ToList(); //.Where(p => p.Module == "Setting").ToList();
 
             // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
             foreach (var permission in permissions)
             {
-                // Add logic to map permission to role here
-                // Example: AddPermissionToRole(role.Id, permission.Id);
+                if (role.Permissions == null || role.Permissions.All(a => a.Rd != permission.Rd))
+                    role.Permissions?.Add(permission);
             }
+
+            await ctx.SaveChangesAsync();
         }
 
+        var hmpy = await ctx.Roles.FirstOrDefaultAsync(a => a.Name == "Hmpy");
+
+        if (hmpy != null)
+        {
+            var permissions = ctx.Permissions.Where(p => p.Module == "Basic").ToList();
+
+            // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
+            foreach (var permission in permissions)
+            {
+                if (hmpy.Permissions == null || hmpy.Permissions.All(a => a.Rd != permission.Rd))
+                    hmpy.Permissions?.Add(permission);
+            }
+
+            await ctx.SaveChangesAsync();
+        }
     }
 }
