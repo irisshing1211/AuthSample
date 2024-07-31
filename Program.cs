@@ -158,36 +158,41 @@ async Task GetPermission()
 
         // Map Module="Setting" permissions to Admin role
         //var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        var role = await ctx.Roles.FirstOrDefaultAsync(a => a.Name == "Admin");
+        await AssignPermission(ctx);
+    }
+}
 
-        if (role != null)
+async Task AssignPermission(ApplicationDbContext ctx)
+{
+    var role = await ctx.Roles.Include(a=>a.Permissions).FirstOrDefaultAsync(a => a.Name == "Admin");
+
+    if (role != null)
+    {
+        var permissions = ctx.Permissions.ToList(); //.Where(p => p.Module == "Setting").ToList();
+
+        // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
+        foreach (var permission in permissions)
         {
-            var permissions = ctx.Permissions.ToList(); //.Where(p => p.Module == "Setting").ToList();
-
-            // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
-            foreach (var permission in permissions)
-            {
-                if (role.Permissions == null || role.Permissions.All(a => a.Rd != permission.Rd))
-                    role.Permissions?.Add(permission);
-            }
-
-            await ctx.SaveChangesAsync();
+            if (role.Permissions == null || role.Permissions.All(a => a.Id != permission.Id))
+                role.Permissions?.Add(permission);
         }
 
-        var hmpy = await ctx.Roles.FirstOrDefaultAsync(a => a.Name == "Hmpy");
+        await ctx.SaveChangesAsync();
+    }
 
-        if (hmpy != null)
+    var hmpy = await ctx.Roles.Include(a=>a.Permissions).FirstOrDefaultAsync(a => a.Name == "Hmpy");
+
+    if (hmpy != null)
+    {
+        var permissions = ctx.Permissions.Where(p => p.Module == "Basic").ToList();
+
+        // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
+        foreach (var permission in permissions)
         {
-            var permissions = ctx.Permissions.Where(p => p.Module == "Basic").ToList();
-
-            // Assuming you have a way to associate permissions with roles, such as a RolePermission table.
-            foreach (var permission in permissions)
-            {
-                if (hmpy.Permissions == null || hmpy.Permissions.All(a => a.Rd != permission.Rd))
-                    hmpy.Permissions?.Add(permission);
-            }
-
-            await ctx.SaveChangesAsync();
+            if (hmpy.Permissions == null || hmpy.Permissions.All(a => a.Id != permission.Id))
+                hmpy.Permissions?.Add(permission);
         }
+
+        await ctx.SaveChangesAsync();
     }
 }

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AuthSample.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20240729113315_add_roleData")]
-    partial class add_roleData
+    [Migration("20240730103021_init")]
+    partial class init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -97,7 +97,7 @@ namespace AuthSample.Migrations
 
             modelBuilder.Entity("AuthSample.Models.Permission", b =>
                 {
-                    b.Property<Guid>("Rd")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
@@ -117,7 +117,7 @@ namespace AuthSample.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("Rd");
+                    b.HasKey("Id");
 
                     b.HasIndex("Code")
                         .IsUnique();
@@ -175,14 +175,9 @@ namespace AuthSample.Migrations
                     b.Property<Guid>("PermissionId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("PermissionRd")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("RoleId", "PermissionId");
 
                     b.HasIndex("PermissionId");
-
-                    b.HasIndex("PermissionRd");
 
                     b.ToTable("RolePermissions", (string)null);
                 });
@@ -293,14 +288,10 @@ namespace AuthSample.Migrations
             modelBuilder.Entity("AuthSample.Models.RolePermission", b =>
                 {
                     b.HasOne("AuthSample.Models.Permission", "Permission")
-                        .WithMany()
+                        .WithMany("RolePermissions")
                         .HasForeignKey("PermissionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("AuthSample.Models.Permission", null)
-                        .WithMany("RolePermissions")
-                        .HasForeignKey("PermissionRd");
 
                     b.HasOne("AuthSample.Models.Role", "Role")
                         .WithMany("RolePermissions")

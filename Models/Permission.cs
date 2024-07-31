@@ -5,7 +5,7 @@ namespace AuthSample.Models;
 
 public class Permission
 {
-    public Guid Rd { get; set; }
+    public Guid Id { get; set; }
 
     public string Code { get; set; }
     public string Module { get; set; }

@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace AuthSample.Migrations
 {
     /// <inheritdoc />
@@ -55,7 +57,7 @@ namespace AuthSample.Migrations
                 name: "Permissions",
                 columns: table => new
                 {
-                    Rd = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Code = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Module = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Func = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -63,7 +65,7 @@ namespace AuthSample.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Permissions", x => x.Rd);
+                    table.PrimaryKey("PK_Permissions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -177,8 +179,7 @@ namespace AuthSample.Migrations
                 columns: table => new
                 {
                     RoleId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PermissionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    PermissionRd = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                    PermissionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -193,13 +194,17 @@ namespace AuthSample.Migrations
                         name: "FK_RolePermissions_Permissions_PermissionId",
                         column: x => x.PermissionId,
                         principalTable: "Permissions",
-                        principalColumn: "Rd",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_RolePermissions_Permissions_PermissionRd",
-                        column: x => x.PermissionRd,
-                        principalTable: "Permissions",
-                        principalColumn: "Rd");
+                });
+
+            migrationBuilder.InsertData(
+                table: "AspNetRoles",
+                columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
+                values: new object[,]
+                {
+                    { new Guid("0a9e4508-0078-44f7-ae1e-ce07d65a84be"), null, "Admin", "Admin" },
+                    { new Guid("93779de5-302c-4dfc-ac5f-b3dccc155f3d"), null, "Hmpy", "基本權限" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -246,11 +251,6 @@ namespace AuthSample.Migrations
                 name: "IX_RolePermissions_PermissionId",
                 table: "RolePermissions",
                 column: "PermissionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_RolePermissions_PermissionRd",
-                table: "RolePermissions",
-                column: "PermissionRd");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserRoles_RoleId",

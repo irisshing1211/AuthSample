@@ -9,13 +9,13 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
     {
         // 需在中間表 RolePermissions 設定 ForeignKey, 可實現直接取得 role.permissions[]
         // 只需設一個，另一邊 ef 會自動產
-        builder.HasMany(a => a.Permissions)
-               .WithMany(r => r.Roles)
+        builder.HasMany(r => r.Permissions)
+               .WithMany(p => p.Roles)
                .UsingEntity<RolePermission>(
-
-                   // 要注意 join 順序
-                   j => j.HasOne<Permission>().WithMany(r => r.RolePermissions).HasForeignKey(k => k.PermissionId),
-                   j => j.HasOne<Role>().WithMany(p => p.RolePermissions).HasForeignKey(k => k.RoleId),
+                   j => j.HasOne(rp => rp.Permission)
+                         .WithMany(p => p.RolePermissions)
+                         .HasForeignKey(rp => rp.PermissionId),
+                   j => j.HasOne(rp => rp.Role).WithMany(r => r.RolePermissions).HasForeignKey(rp => rp.RoleId),
                    j => j.ToTable("RolePermissions"));
 
         builder.HasData(
