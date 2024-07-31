@@ -28,7 +28,7 @@ export default {
       try {
         this.error = null; // 清除任何先前的錯誤
         console.log(this.form)
-        const response = await axios.post('https://localhost:5001/api/auth/login', this.form);
+        const response = await axios.post('https://localhost:5001/api/login', this.form);
         const token = response.data.token;
 
         // 儲存 token

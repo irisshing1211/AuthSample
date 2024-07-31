@@ -44,7 +44,7 @@ export default {
     async handleSubmit() {
       try {
         this.error = null; // 清除錯誤信息
-        await axios.post('https://localhost:5001/api/auth/register', this.form);
+        await axios.post('https://localhost:5001/api/register', this.form);
         // 處理成功邏輯，例如重定向到登入頁
         this.$router.push('/login');
       } catch (error) {
