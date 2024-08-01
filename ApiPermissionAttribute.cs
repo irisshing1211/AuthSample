@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace AuthSample;
-
+[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = true)]
 public class ApiPermissionAttribute(string module, string func, string action) : Attribute, IAuthorizationFilter
 {
     public string RequiredPermission { get; } = $"{module}_{func}_{action}";

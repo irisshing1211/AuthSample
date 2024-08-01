@@ -1,7 +1,10 @@
 using System.Reflection;
 using System.Text;
 using AuthSample;
+using AuthSample.Interfaces;
 using AuthSample.Models;
+using AuthSample.Services;
+using Castle.DynamicProxy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -94,6 +97,24 @@ void ConfigureServices(IServiceCollection services)
 
     #endregion
 
+    #region di
+
+    services.AddSingleton<IPermissionService, PermissionService>();
+    services.AddTransient<IMdlBaseService, MdlBaseService>();
+
+    #endregion
+
+    #region Castle.DynamicProxy
+
+    // 注册 ProxyGenerator
+    services.AddSingleton<ProxyGenerator>();
+
+    // 扫描和注册代理服务
+    services.AddProxiedServices(services.BuildServiceProvider().GetRequiredService<ProxyGenerator>(),
+                                services.BuildServiceProvider().GetRequiredService<IPermissionService>());
+
+    #endregion
+
     services.AddControllers();
 
     //services.AddSpaStaticFiles(configuration => { configuration.RootPath = "ClientApp/dist"; });
@@ -164,7 +185,7 @@ async Task GetPermission()
 
 async Task AssignPermission(ApplicationDbContext ctx)
 {
-    var role = await ctx.Roles.Include(a=>a.Permissions).FirstOrDefaultAsync(a => a.Name == "Admin");
+    var role = await ctx.Roles.Include(a => a.Permissions).FirstOrDefaultAsync(a => a.Name == "Admin");
 
     if (role != null)
     {
@@ -180,7 +201,7 @@ async Task AssignPermission(ApplicationDbContext ctx)
         await ctx.SaveChangesAsync();
     }
 
-    var hmpy = await ctx.Roles.Include(a=>a.Permissions).FirstOrDefaultAsync(a => a.Name == "Hmpy");
+    var hmpy = await ctx.Roles.Include(a => a.Permissions).FirstOrDefaultAsync(a => a.Name == "Hmpy");
 
     if (hmpy != null)
     {
